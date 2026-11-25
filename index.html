@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Помощник">
+<meta name="theme-color" content="#0f1115">
+<title>Помощник</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%234f7cff'/%3E%3Ctext x='90' y='122' font-size='100' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'%3EП%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0f1115;--card:#181b22;--card2:#20242d;--line:#2a2f3a;--text:#eef0f4;--muted:#8a91a0;
+  --accent:#4f7cff;--green:#2fbf71;--red:#ef5b5b;--yellow:#f2b544;
+  --safe-b:env(safe-area-inset-bottom);--safe-t:env(safe-area-inset-top);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text",Segoe UI,Roboto,sans-serif}
+body{padding-top:var(--safe-t);padding-bottom:calc(72px + var(--safe-b))}
+header{padding:14px 16px 6px;display:flex;justify-content:space-between;align-items:flex-end}
+header h1{margin:0;font-size:28px;font-weight:700}
+header .sub{color:var(--muted);font-size:14px}
+main{padding:0 12px 16px}
+.view{display:none}.view.active{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:10px 0}
+.card h2{margin:0 0 10px;font-size:17px;display:flex;justify-content:space-between;align-items:center}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+input,select,textarea{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px;font-size:16px;font-family:inherit}
+textarea{resize:none}
+button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 14px;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
+button.ghost{background:var(--card2);color:var(--text);border:1px solid var(--line)}
+button.small{padding:6px 10px;font-size:13px}
+button.danger{background:transparent;color:var(--red);padding:4px 8px}
+button:disabled{opacity:.5}
+.item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item .grow{flex:1;min-width:0}
+.item .t{font-weight:600}
+.item .m{color:var(--muted);font-size:13px}
+.done .t{text-decoration:line-through;color:var(--muted)}
+.chk{width:24px;height:24px;border-radius:50%;border:2px solid var(--muted);flex:none;display:flex;align-items:center;justify-content:center;font-size:14px}
+.chk.on{background:var(--green);border-color:var(--green)}
+.time{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;width:48px;flex:none}
+.empty{color:var(--muted);text-align:center;padding:10px;font-size:14px}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.stat{background:var(--card2);border-radius:12px;padding:10px}
+.stat .l{color:var(--muted);font-size:12px}.stat .v{font-weight:700;font-size:17px;margin-top:2px}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.bar{height:8px;background:var(--card2);border-radius:4px;overflow:hidden;margin-top:6px}
+.bar>i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.seg{display:flex;background:var(--card2);border-radius:10px;padding:3px;gap:3px;margin-bottom:8px}
+.seg button{flex:1;background:transparent;color:var(--muted);padding:8px}
+.seg button.on{background:var(--accent);color:#fff}
+nav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,17,21,.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);display:flex;padding:6px 4px calc(6px + var(--safe-b));z-index:10}
+nav button{flex:1;background:transparent;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:500;padding:4px}
+nav button span{font-size:22px;line-height:1}
+nav button.on{color:var(--accent)}
+/* chat */
+#chatView{display:none;flex-direction:column;height:calc(100dvh - 72px - var(--safe-b) - var(--safe-t) - 60px)}
+#chatView.active{display:flex}
+#msgs{flex:1;overflow-y:auto;padding:6px 2px}
+.msg{max-width:88%;padding:10px 12px;border-radius:16px;margin:6px 0;white-space:normal;word-wrap:break-word}
+.msg.user{background:var(--accent);margin-left:auto;border-bottom-right-radius:4px}
+.msg.assistant{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg pre{background:#0b0d11;padding:8px;border-radius:8px;overflow-x:auto;font-size:13px}
+.msg code{font-family:ui-monospace,Menlo,monospace;font-size:13px}
+.msg p{margin:0 0 6px}.msg p:last-child{margin:0}
+.act{display:block;margin-top:8px;background:var(--green);width:100%}
+.chatbar{display:flex;gap:8px;padding-top:8px}
+.chatbar textarea{flex:1;max-height:120px}
+.modelbar{display:flex;gap:6px;margin-bottom:4px}
+.modelbar select{font-size:13px;padding:7px}
+.toast{position:fixed;left:12px;right:12px;top:calc(12px + var(--safe-t));background:var(--card2);border:1px solid var(--accent);border-radius:14px;padding:12px 14px;z-index:50;box-shadow:0 8px 30px rgba(0,0,0,.5);display:none}
+.tag{display:inline-block;background:var(--card2);border-radius:6px;padding:1px 7px;font-size:12px;color:var(--muted)}
+label.l{display:block;color:var(--muted);font-size:13px;margin:10px 0 4px}
+.hint{color:var(--muted);font-size:13px;margin-top:6px}
+a{color:var(--accent)}
+details summary{cursor:pointer;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <div><div class="sub" id="hdrDate"></div><h1 id="hdrTitle">Сегодня</h1></div>
+  <div class="sub" id="hdrClock"></div>
+</header>
+
+<main>
+<!-- TODAY -->
+<section class="view active" id="todayView">
+  <div class="card" id="greetCard"></div>
+  <div class="card">
+    <h2>График дня <button class="small ghost" onclick="openForm('schedule')">+ Добавить</button></h2>
+    <div id="schedList"></div>
+  </div>
+  <div class="card">
+    <h2>Напоминания <button class="small ghost" onclick="openForm('reminder')">+ Добавить</button></h2>
+    <div id="remList"></div>
+    <div class="hint">🔔 Кнопка «📅» добавляет напоминание в Календарь iPhone, и оно сработает, даже когда приложение закрыто.</div>
+  </div>
+  <div class="card" id="todayFin"></div>
+</section>
+
+<!-- GOALS -->
+<section class="view" id="goalsView">
+  <div class="card">
+    <h2>Мои цели <button class="small ghost" onclick="openForm('goal')">+ Цель</button></h2>
+    <div class="seg" id="goalFilter"></div>
+    <div id="goalList"></div>
+  </div>
+</section>
+
+<!-- FINANCE -->
+<section class="view" id="finView">
+  <div class="card">
+    <div class="row" style="margin-bottom:10px">
+      <button class="ghost small" style="flex:0" onclick="shiftMonth(-1)">‹</button>
+      <div style="text-align:center;font-weight:700" id="finMonth"></div>
+      <button class="ghost small" style="flex:0" onclick="shiftMonth(1)">›</button>
+    </div>
+    <div class="stats" id="finStats"></div>
+  </div>
+  <div class="card">
+    <h2>Добавить</h2>
+    <div class="seg"><button id="txIn" onclick="setTxType('in')">Доход</button><button id="txOut" class="on" onclick="setTxType('out')">Расход</button></div>
+    <div class="row"><input id="txAmount" type="number" inputmode="decimal" placeholder="Сумма"><select id="txCat"></select></div>
+    <div class="row" style="margin-top:8px"><input id="txNote" placeholder="Комментарий"><input id="txDate" type="date"></div>
+    <button style="width:100%;margin-top:8px" onclick="addTx()">Сохранить</button>
+  </div>
+  <div class="card"><h2>Расходы по категориям</h2><div id="finCats"></div></div>
+  <div class="card"><h2>Операции</h2><div id="txList"></div></div>
+</section>
+
+<!-- CHAT -->
+<section id="chatView">
+  <div class="modelbar">
+    <select id="provSel" onchange="onProvChange()" style="flex:0 0 40%"></select>
+    <select id="modelSel" onchange="saveModel()"></select>
+    <button class="ghost small" onclick="loadModels(true)" title="Обновить список">⟳</button>
+  </div>
+  <div id="msgs"></div>
+  <div class="chatbar">
+    <textarea id="chatIn" rows="1" placeholder="Спроси что угодно или попроси: «напомни завтра в 9 позвонить»"></textarea>
+    <button id="sendBtn" onclick="sendChat()">➤</button>
+  </div>
+</section>
+
+<!-- SETTINGS -->
+<section class="view" id="setView">
+  <div class="card">
+    <h2>Профиль</h2>
+    <label class="l">Как тебя зовут</label><input id="sName" onchange="saveSettings()">
+    <label class="l">Валюта</label>
+    <select id="sCur" onchange="saveSettings()"><option>сом</option><option>₽</option><option>$</option><option>€</option><option>₸</option></select>
+  </div>
+  <div class="card">
+    <h2>ИИ: бесплатные модели</h2>
+    <label class="l">OpenRouter: десятки бесплатных моделей (DeepSeek, Llama, Qwen, Gemma…)</label>
+    <input id="kOR" placeholder="sk-or-..." onchange="saveSettings()" autocomplete="off">
+    <div class="hint">Ключ бесплатно: <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></div>
+    <label class="l">Groq: очень быстрые Llama, Qwen, Kimi и др.</label>
+    <input id="kGQ" placeholder="gsk_..." onchange="saveSettings()" autocomplete="off">
+    <div class="hint">Ключ бесплатно: <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a></div>
+    <label class="l">Google Gemini: Gemini Flash и др.</label>
+    <input id="kGM" placeholder="AIza..." onchange="saveSettings()" autocomplete="off">
+    <div class="hint">Ключ бесплатно: <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a></div>
+    <label class="l">Pollinations работает без ключа, но может быть нестабильным</label>
+    <label class="l" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="sCtx" style="width:auto" onchange="saveSettings()"> ИИ видит мои цели, финансы и график</label>
+    <div class="hint">Ключи хранятся только на твоём телефоне.</div>
+  </div>
+  <div class="card">
+    <h2>Данные</h2>
+    <div class="row"><button class="ghost" onclick="exportData()">⬇️ Резервная копия</button><button class="ghost" onclick="document.getElementById('impFile').click()">⬆️ Восстановить</button></div>
+    <input type="file" id="impFile" accept=".json,application/json" style="display:none" onchange="importData(event)">
+    <button class="ghost" style="width:100%;margin-top:8px" onclick="clearChat()">Очистить чат</button>
+    <div class="hint">Все данные лежат на телефоне. Время от времени делай резервную копию.</div>
+  </div>
+  <div class="card">
+    <h2>Установка на iPhone</h2>
+    <div class="hint" style="margin:0">Открой в Safari → кнопка «Поделиться» → «На экран Домой». Приложение появится с иконкой и будет открываться на весь экран.</div>
+  </div>
+</section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- generic form modal -->
+<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40;align-items:flex-end">
+  <div class="card" style="width:100%;margin:0;border-radius:20px 20px 0 0;padding-bottom:calc(20px + var(--safe-b))" id="modalBody"></div>
+</div>
+
+<nav id="nav"></nav>
+
+<script>
+// ---------- storage ----------
+const KEY='pomoshnik_v1';
+const DEF={settings:{name:'',currency:'сом',provider:'openrouter',model:'',keys:{openrouter:'',groq:'',gemini:''},useContext:true},
+  schedule:[],reminders:[],goals:[],tx:[],chat:[]};
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY))||structuredClone(DEF)}catch(e){S=structuredClone(DEF)}
+S={...structuredClone(DEF),...S,settings:{...DEF.settings,...(S.settings||{}),keys:{...DEF.settings.keys,...((S.settings||{}).keys||{})}}};
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('⚠️ Не удалось сохранить данные')}}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const todayStr=(d=new Date())=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const money=n=>(Math.round(n*100)/100).toLocaleString('ru-RU')+' '+S.settings.currency;
+const MONTHS=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const CAT_OUT=['Еда','Транспорт','Жильё','Связь/интернет','Здоровье','Одежда','Развлечения','Подписки','Долги','Другое'];
+const CAT_IN=['Зарплата','Бизнес','Майнинг','Подработка','Инвестиции','Подарок','Другое'];
+const GOAL_CATS=['Жизнь','Деньги','Здоровье','Карьера','Семья','Обучение'];
+
+// ---------- nav ----------
+const TABS=[['today','🏠','Сегодня'],['goals','🎯','Цели'],['fin','💰','Финансы'],['chat','🤖','ИИ'],['set','⚙️','Ещё']];
+let tab='today';
+$('nav').innerHTML=TABS.map(([id,ic,l])=>`<button id="nb_${id}" onclick="go('${id}')"><span>${ic}</span>${l}</button>`).join('');
+function go(t){
+  tab=t;
+  document.querySelectorAll('.view,#chatView').forEach(v=>v.classList.remove('active'));
+  $(t+'View').classList.add('active');
+  TABS.forEach(([id])=>$('nb_'+id).classList.toggle('on',id===t));
+  $('hdrTitle').textContent=TABS.find(x=>x[0]===t)[2]==='Ещё'?'Настройки':TABS.find(x=>x[0]===t)[2]==='ИИ'?'ИИ-помощник':TABS.find(x=>x[0]===t)[2];
+  render();
+  if(t==='chat'){scrollChat();}
+}
+function render(){
+  if(tab==='today')renderToday();
+  if(tab==='goals')renderGoals();
+  if(tab==='fin')renderFin();
+  if(tab==='chat')renderChat();
+  if(tab==='set')renderSettings();
+}
+function tick(){
+  const d=new Date();
+  $('hdrDate').textContent=d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+  $('hdrClock').textContent=`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  checkReminders();
+}
+
+// ---------- today ----------
+function renderToday(){
+  const h=new Date().getHours();
+  const g=h<5?'Доброй ночи':h<12?'Доброе утро':h<18?'Добрый день':'Добрый вечер';
+  const t=todayStr();
+  const sch=todaysSchedule();
+  const doneCnt=sch.filter(x=>(x.doneDates||[]).includes(t)).length;
+  const activeGoals=S.goals.filter(x=>x.progress<100).length;
+  $('greetCard').innerHTML=`<div style="font-size:20px;font-weight:700">${g}${S.settings.name?', '+esc(S.settings.name):''} 👋</div>
+   <div class="m" style="color:var(--muted);margin-top:4px">План: ${doneCnt}/${sch.length} • Активных целей: ${activeGoals}</div>
+   ${sch.length?`<div class="bar"><i style="width:${sch.length?doneCnt/sch.length*100:0}%;background:var(--green)"></i></div>`:''}`;
+  $('schedList').innerHTML=sch.length?sch.map(x=>{const on=(x.doneDates||[]).includes(t);return `
+    <div class="item ${on?'done':''}">
+      <div class="time">${esc(x.time)}</div>
+      <div class="grow"><div class="t">${esc(x.title)}</div><div class="m">${x.repeat==='daily'?'каждый день':x.repeat==='weekdays'?'по будням':'разово'}</div></div>
+      <button class="danger" onclick="icsSchedule('${x.id}')">📅</button>
+      <div class="chk ${on?'on':''}" onclick="toggleSched('${x.id}')">${on?'✓':''}</div>
+      <button class="danger" onclick="del('schedule','${x.id}')">✕</button>
+    </div>`}).join(''):'<div class="empty">Пусто. Добавь дела на день или попроси ИИ составить график.</div>';
+  const rem=[...S.reminders].sort((a,b)=>(a.done-b.done)||a.at.localeCompare(b.at));
+  $('remList').innerHTML=rem.length?rem.map(x=>`
+    <div class="item ${x.done?'done':''}">
+      <div class="chk ${x.done?'on':''}" onclick="toggleRem('${x.id}')">${x.done?'✓':''}</div>
+      <div class="grow"><div class="t">${esc(x.title)}</div><div class="m">${fmtDT(x.at)}</div></div>
+      <button class="danger" onclick="icsReminder('${x.id}')">📅</button>
+      <button class="danger" onclick="del('reminders','${x.id}')">✕</button>
+    </div>`).join(''):'<div class="empty">Нет напоминаний</div>';
+  const m=monthStats(new Date());
+  $('todayFin').innerHTML=`<h2>Финансы за месяц <button class="small ghost" onclick="go('fin')">Открыть</button></h2>
+   <div class="stats"><div class="stat"><div class="l">Доходы</div><div class="v pos">${money(m.inc)}</div></div>
+   <div class="stat"><div class="l">Расходы</div><div class="v neg">${money(m.out)}</div></div>
+   <div class="stat"><div class="l">Остаток</div><div class="v ${m.inc-m.out>=0?'pos':'neg'}">${money(m.inc-m.out)}</div></div></div>`;
+}
+function todaysSchedule(d=new Date()){
+  const t=todayStr(d),wd=d.getDay();
+  return S.schedule.filter(x=>x.repeat==='daily'||(x.repeat==='weekdays'&&wd>0&&wd<6)||(x.repeat==='once'&&x.date===t))
+    .sort((a,b)=>a.time.localeCompare(b.time));
+}
+function fmtDT(s){const d=new Date(s);if(isNaN(d))return s;const t=todayStr(),tm=todayStr(new Date(Date.now()+864e5));
+  const ds=todayStr(d);const day=ds===t?'Сегодня':ds===tm?'Завтра':d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+  return `${day}, ${pad(d.getHours())}:${pad(d.getMinutes())}`}
+function toggleSched(id){const x=S.schedule.find(i=>i.id===id);const t=todayStr();x.doneDates=x.doneDates||[];
+  x.doneDates=x.doneDates.includes(t)?x.doneDates.filter(d=>d!==t):[...x.doneDates.filter(d=>d>=todayStr(new Date(Date.now()-7*864e5))),t];save();render()}
+function toggleRem(id){const x=S.reminders.find(i=>i.id===id);x.done=!x.done;save();render()}
+function del(coll,id){if(!confirm('Удалить?'))return;S[coll]=S[coll].filter(x=>x.id!==id);save();render()}
+
+// reminders while app open
+let notified=new Set();
+function checkReminders(){
+  const now=Date.now();
+  S.reminders.forEach(r=>{if(!r.done&&!notified.has(r.id)){const t=new Date(r.at).getTime();if(t<=now&&now-t<120000){notified.add(r.id);fire('⏰ '+r.title)}}});
+  const d=new Date(),hm=`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  todaysSchedule().forEach(x=>{const k=x.id+todayStr()+x.time;if(x.time===hm&&!notified.has(k)){notified.add(k);fire('📋 '+x.time+' '+x.title)}});
+}
+function fire(text){toast(text,8000);try{if('Notification'in window&&Notification.permission==='granted')new Notification('Помощник',{body:text})}catch(e){}
+  try{navigator.vibrate&&navigator.vibrate(300)}catch(e){}}
+function toast(t,ms=3000){const el=$('toast');el.textContent=t;el.style.display='block';clearTimeout(el._t);el._t=setTimeout(()=>el.style.display='none',ms);el.onclick=()=>el.style.display='none'}
+
+// ICS export -> iPhone calendar
+function icsDate(d){return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`}
+function downloadICS(title,start,rrule){
+  const end=new Date(start.getTime()+15*60000);
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Pomoshnik//RU','CALSCALE:GREGORIAN','BEGIN:VEVENT',
+    'UID:'+uid()+'@pomoshnik','DTSTAMP:'+icsDate(new Date()),'DTSTART:'+icsDate(start),'DTEND:'+icsDate(end),
+    'SUMMARY:'+title.replace(/[,;\\]/g,m=>'\\'+m).replace(/\n/g,' '),rrule||'',
+    'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+title.replace(/[,;\\]/g,' '),'TRIGGER:PT0M','END:VALARM','END:VEVENT','END:VCALENDAR']
+    .filter(Boolean).join('\r\n');
+  const a=document.createElement('a');a.href='data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);a.download='napominanie.ics';
+  document.body.appendChild(a);a.click();a.remove();
+}
+function icsReminder(id){const r=S.reminders.find(x=>x.id===id);downloadICS(r.title,new Date(r.at))}
+function icsSchedule(id){const x=S.schedule.find(i=>i.id===id);const[h,m]=x.time.split(':');
+  const d=x.repeat==='once'&&x.date?new Date(x.date+'T00:00'):new Date();d.setHours(+h,+m,0,0);
+  downloadICS(x.title,d,x.repeat==='daily'?'RRULE:FREQ=DAILY':x.repeat==='weekdays'?'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR':'')}
+
+// ---------- forms ----------
+function openForm(type,preset={}){
+  let html='';
+  if(type==='schedule')html=`<h2>Дело в графике</h2>
+    <input id="f1" placeholder="Что делать" value="${esc(preset.title||'')}">
+    <div class="row" style="margin-top:8px"><input id="f2" type="time" value="${esc(preset.time||'09:00')}">
+    <select id="f3"><option value="daily">Каждый день</option><option value="weekdays">По будням</option><option value="once">Только сегодня</option></select></div>`;
+  if(type==='reminder'){const d=new Date(Date.now()+3600e3);html=`<h2>Напоминание</h2>
+    <input id="f1" placeholder="О чём напомнить" value="${esc(preset.title||'')}">
+    <input id="f2" type="datetime-local" style="margin-top:8px" value="${esc(preset.at||todayStr(d)+'T'+pad(d.getHours())+':00')}">
+    <label class="l" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="f3" style="width:auto" checked> Сразу добавить в Календарь iPhone</label>`}
+  if(type==='goal')html=`<h2>Новая цель</h2>
+    <input id="f1" placeholder="Цель, например: накопить 500 000" value="${esc(preset.title||'')}">
+    <div class="row" style="margin-top:8px"><select id="f2">${GOAL_CATS.map(c=>`<option>${c}</option>`).join('')}</select><input id="f3" type="date" value="${esc(preset.deadline||'')}"></div>
+    <textarea id="f4" rows="3" style="margin-top:8px" placeholder="Шаги, каждый с новой строки">${esc((preset.steps||[]).join('\n'))}</textarea>`;
+  $('modalBody').innerHTML=html+`<div class="row" style="margin-top:12px"><button class="ghost" onclick="closeModal()">Отмена</button><button onclick="submitForm('${type}')">Сохранить</button></div>`;
+  $('modal').style.display='flex';
+  if(type==='goal'&&preset.cat)$('f2').value=preset.cat;
+  setTimeout(()=>$('f1').focus(),50);
+}
+function closeModal(){$('modal').style.display='none'}
+$('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+function submitForm(type){
+  const v1=$('f1').value.trim();if(!v1)return toast('Заполни название');
+  if(type==='schedule')S.schedule.push({id:uid(),title:v1,time:$('f2').value||'09:00',repeat:$('f3').value,date:todayStr(),doneDates:[]});
+  if(type==='reminder'){const r={id:uid(),title:v1,at:$('f2').value,done:false};S.reminders.push(r);if($('f3').checked)setTimeout(()=>icsReminder(r.id),100);askNotif()}
+  if(type==='goal')S.goals.push({id:uid(),title:v1,cat:$('f2').value,deadline:$('f3').value,progress:0,steps:$('f4').value.split('\n').map(s=>s.trim()).filter(Boolean).map(t=>({t,done:false}))});
+  save();closeModal();render();toast('✅ Сохранено');
+}
+function askNotif(){try{if('Notification'in window&&Notification.permission==='default')Notification.requestPermission()}catch(e){}}
+
+// ---------- goals ----------
+let goalFilter='Все';
+function renderGoals(){
+  $('goalFilter').innerHTML=['Все',...GOAL_CATS.filter(c=>S.goals.some(g=>g.cat===c))].map(c=>`<button class="${c===goalFilter?'on':''}" onclick="goalFilter='${c}';renderGoals()">${c}</button>`).join('');
+  const list=S.goals.filter(g=>goalFilter==='Все'||g.cat===goalFilter).sort((a,b)=>(a.progress>=100)-(b.progress>=100));
+  $('goalList').innerHTML=list.length?list.map(g=>{
+    const days=g.deadline?Math.ceil((new Date(g.deadline)-new Date())/864e5):null;
+    return `<div class="card" style="background:var(--card2);margin:8px 0">
+      <div style="display:flex;justify-content:space-between;gap:8px"><div><div class="t" style="font-weight:700">${g.progress>=100?'🏆 ':''}${esc(g.title)}</div>
+      <div class="m" style="color:var(--muted);font-size:13px"><span class="tag">${esc(g.cat)}</span> ${days!==null?(days>=0?`осталось ${days} дн.`:'срок прошёл'):''}</div></div>
+      <button class="danger" onclick="del('goals','${g.id}')">✕</button></div>
+      <div class="bar"><i style="width:${g.progress}%;${g.progress>=100?'background:var(--green)':''}"></i></div>
+      <div class="row" style="margin-top:6px"><input type="range" min="0" max="100" step="5" value="${g.progress}" oninput="setProg('${g.id}',this.value)" style="padding:0"><div style="flex:0 0 44px;text-align:right;font-weight:700">${g.progress}%</div></div>
+      ${(g.steps||[]).map((s,i)=>`<div class="item ${s.done?'done':''}" style="padding:6px 0"><div class="chk ${s.done?'on':''}" onclick="toggleStep('${g.id}',${i})">${s.done?'✓':''}</div><div class="grow t" style="font-weight:400">${esc(s.t)}</div></div>`).join('')}
+      <button class="small ghost" style="margin-top:6px" onclick="askAIGoal('${g.id}')">🤖 План от ИИ</button>
+    </div>`}).join(''):'<div class="empty">Запиши цели на жизнь: деньги, здоровье, семья, карьера. ИИ поможет разбить их на шаги.</div>';
+}
+function setProg(id,v){const g=S.goals.find(x=>x.id===id);g.progress=+v;save();clearTimeout(window._pt);window._pt=setTimeout(renderGoals,250)}
+function toggleStep(id,i){const g=S.goals.find(x=>x.id===id);g.steps[i].done=!g.steps[i].done;
+  const n=g.steps.length;g.progress=Math.round(g.steps.filter(s=>s.done).length/n*100);save();renderGoals()}
+function askAIGoal(id){const g=S.goals.find(x=>x.id===id);go('chat');$('chatIn').value=`Помоги разбить цель «${g.title}»${g.deadline?' (срок '+g.deadline+')':''} на конкретные шаги и предложи, что сделать на этой неделе.`;sendChat()}
+
+// ---------- finance ----------
+let finDate=new Date();finDate.setDate(1);let txType='out';
+function setTxType(t){txType=t;$('txIn').classList.toggle('on',t==='in');$('txOut').classList.toggle('on',t==='out');
+  $('txCat').innerHTML=(t==='in'?CAT_IN:CAT_OUT).map(c=>`<option>${c}</option>`).join('')}
+function shiftMonth(n){finDate.setMonth(finDate.getMonth()+n);renderFin()}
+function monthStats(d){const p=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;const list=S.tx.filter(x=>x.date.startsWith(p));
+  const inc=list.filter(x=>x.type==='in').reduce((a,b)=>a+b.amount,0),out=list.filter(x=>x.type==='out').reduce((a,b)=>a+b.amount,0);
+  const cats={};list.filter(x=>x.type==='out').forEach(x=>cats[x.cat]=(cats[x.cat]||0)+x.amount);return{list,inc,out,cats}}
+function renderFin(){
+  if(!$('txCat').innerHTML)setTxType('out');if(!$('txDate').value)$('txDate').value=todayStr();
+  $('finMonth').textContent=MONTHS[finDate.getMonth()]+' '+finDate.getFullYear();
+  const m=monthStats(finDate);
+  $('finStats').innerHTML=`<div class="stat"><div class="l">Доходы</div><div class="v pos">${money(m.inc)}</div></div>
+   <div class="stat"><div class="l">Расходы</div><div class="v neg">${money(m.out)}</div></div>
+   <div class="stat"><div class="l">Остаток</div><div class="v ${m.inc-m.out>=0?'pos':'neg'}">${money(m.inc-m.out)}</div></div>`;
+  const cats=Object.entries(m.cats).sort((a,b)=>b[1]-a[1]);const max=cats[0]?.[1]||1;
+  $('finCats').innerHTML=cats.length?cats.map(([c,v])=>`<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:14px"><span>${esc(c)}</span><span>${money(v)} · ${Math.round(v/m.out*100)}%</span></div><div class="bar"><i style="width:${v/max*100}%;background:var(--red)"></i></div></div>`).join(''):'<div class="empty">Нет расходов</div>';
+  const list=[...m.list].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
+  $('txList').innerHTML=list.length?list.map(x=>`<div class="item"><div class="grow"><div class="t">${esc(x.cat)}${x.note?' · <span style="font-weight:400">'+esc(x.note)+'</span>':''}</div><div class="m">${new Date(x.date).toLocaleDateString('ru-RU',{day:'numeric',month:'short'})}</div></div>
+   <div class="${x.type==='in'?'pos':'neg'}" style="font-weight:700;flex:none">${x.type==='in'?'+':'−'}${money(x.amount)}</div><button class="danger" onclick="del('tx','${x.id}')">✕</button></div>`).join(''):'<div class="empty">Нет операций в этом месяце</div>';
+}
+function addTx(){const a=parseFloat($('txAmount').value);if(!a||a<=0)return toast('Введи сумму');
+  S.tx.push({id:uid(),type:txType,amount:a,cat:$('txCat').value,note:$('txNote').value.trim(),date:$('txDate').value||todayStr()});
+  save();$('txAmount').value='';$('txNote').value='';renderFin();toast('✅ Записано')}
+
+// ---------- settings ----------
+function renderSettings(){$('sName').value=S.settings.name;$('sCur').value=S.settings.currency;
+  $('kOR').value=S.settings.keys.openrouter;$('kGQ').value=S.settings.keys.groq;$('kGM').value=S.settings.keys.gemini;$('sCtx').checked=S.settings.useContext}
+function saveSettings(){S.settings.name=$('sName').value.trim();S.settings.currency=$('sCur').value;
+  S.settings.keys={openrouter:$('kOR').value.trim(),groq:$('kGQ').value.trim(),gemini:$('kGM').value.trim()};S.settings.useContext=$('sCtx').checked;
+  modelsCache={};save();toast('Сохранено')}
+function exportData(){const data=JSON.stringify({...S,settings:{...S.settings,keys:{openrouter:'',groq:'',gemini:''}}},null,1);
+  const a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(data);a.download=`pomoshnik-${todayStr()}.json`;document.body.appendChild(a);a.click();a.remove()}
+function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
+  if(!confirm('Заменить текущие данные копией?'))return;const keys=S.settings.keys;S={...structuredClone(DEF),...d};S.settings={...DEF.settings,...d.settings,keys};save();toast('✅ Восстановлено');render()}catch(err){toast('Файл не подходит')}};r.readAsText(f)}
+function clearChat(){if(confirm('Очистить историю чата?')){S.chat=[];save();toast('Чат очищен')}}
+
+// ---------- AI ----------
+const PROVIDERS={
+  openrouter:{name:'OpenRouter (free)',url:'https://openrouter.ai/api/v1/chat/completions',key:'openrouter'},
+  groq:{name:'Groq',url:'https://api.groq.com/openai/v1/chat/completions',key:'groq'},
+  gemini:{name:'Google Gemini',key:'gemini'},
+  pollinations:{name:'Pollinations (без ключа)',url:'https://text.pollinations.ai/openai',key:null}
+};
+let modelsCache={};
+function initProv(){$('provSel').innerHTML=Object.entries(PROVIDERS).map(([k,p])=>`<option value="${k}">${p.name}${p.key&&!S.settings.keys[p.key]?' 🔑':''}</option>`).join('');$('provSel').value=S.settings.provider}
+function onProvChange(){S.settings.provider=$('provSel').value;S.settings.model='';save();loadModels()}
+function saveModel(){S.settings.model=$('modelSel').value;save()}
+async function fetchModels(p){
+  const k=S.settings.keys;
+  if(p==='openrouter'){const r=await fetch('https://openrouter.ai/api/v1/models');const j=await r.json();
+    return j.data.filter(m=>m.id.endsWith(':free')||(m.pricing&&+m.pricing.prompt===0&&+m.pricing.completion===0)).map(m=>({id:m.id,name:m.name.replace(/\s*\(free\)/i,'')})).sort((a,b)=>a.name.localeCompare(b.name))}
+  if(p==='groq'){if(!k.groq)throw new Error('Нужен ключ Groq (вкладка «Ещё»)');const r=await fetch('https://api.groq.com/openai/v1/models',{headers:{Authorization:'Bearer '+k.groq}});if(!r.ok)throw new Error('Groq: '+r.status);
+    const j=await r.json();return j.data.filter(m=>!/whisper|tts|guard|orpheus|playai|distil/i.test(m.id)&&m.active!==false).map(m=>({id:m.id,name:m.id})).sort((a,b)=>a.id.localeCompare(b.id))}
+  if(p==='gemini'){if(!k.gemini)throw new Error('Нужен ключ Gemini (вкладка «Ещё»)');const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key='+encodeURIComponent(k.gemini));if(!r.ok)throw new Error('Gemini: '+r.status);
+    const j=await r.json();return j.models.filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')&&/gemini|gemma/i.test(m.name)&&!/embedding|image|tts|audio|live/i.test(m.name)).map(m=>({id:m.name.replace('models/',''),name:m.displayName||m.name})).reverse()}
+  if(p==='pollinations'){try{const r=await fetch('https://text.pollinations.ai/models');const j=await r.json();const l=j.filter(m=>!m.audio&&(!m.tier||m.tier==='anonymous')).map(m=>({id:m.name,name:m.description||m.name}));if(l.length)return l}catch(e){}return[{id:'openai',name:'OpenAI (по умолчанию)'}]}
+}
+async function loadModels(force){
+  const p=S.settings.provider;const sel=$('modelSel');
+  if(force)delete modelsCache[p];
+  sel.innerHTML='<option>Загрузка…</option>';
+  try{const list=modelsCache[p]||(modelsCache[p]=await fetchModels(p));
+    sel.innerHTML=list.map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
+    if(S.settings.model&&list.some(m=>m.id===S.settings.model))sel.value=S.settings.model;else{
+      const pref=list.find(m=>/deepseek|qwen3|llama-3\.3|gemini-2\.5-flash|gemini-flash-latest|kimi/i.test(m.id));if(pref)sel.value=pref.id;S.settings.model=sel.value;save()}
+  }catch(e){sel.innerHTML=`<option value="">${esc(e.message||'Ошибка загрузки')}</option>`}
+}
+function buildContext(){
+  const now=new Date();let c=`Сейчас: ${now.toLocaleString('ru-RU',{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})} (ISO дата ${todayStr()}).`;
+  if(!S.settings.useContext)return c;
+  const sch=todaysSchedule();c+=`\nГрафик на сегодня: ${sch.length?sch.map(x=>`${x.time} ${x.title}${(x.doneDates||[]).includes(todayStr())?' (сделано)':''}`).join('; '):'пусто'}.`;
+  const rem=S.reminders.filter(r=>!r.done).sort((a,b)=>a.at.localeCompare(b.at)).slice(0,10);c+=`\nНапоминания: ${rem.length?rem.map(r=>`${r.at.replace('T',' ')} ${r.title}`).join('; '):'нет'}.`;
+  c+=`\nЦели: ${S.goals.length?S.goals.map(g=>`${g.title} [${g.cat}, ${g.progress}%${g.deadline?', срок '+g.deadline:''}]`).join('; '):'не заданы'}.`;
+  const m=monthStats(now);c+=`\nФинансы за текущий месяц (валюта ${S.settings.currency}): доход ${m.inc}, расход ${m.out}, остаток ${m.inc-m.out}. Расходы по категориям: ${Object.entries(m.cats).map(([k,v])=>k+' '+v).join(', ')||'нет'}.`;
+  const last=[...S.tx].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,15);if(last.length)c+=`\nПоследние операции: ${last.map(x=>`${x.date} ${x.type==='in'?'+':'-'}${x.amount} ${x.cat}${x.note?' ('+x.note+')':''}`).join('; ')}.`;
+  return c;
+}
+function systemPrompt(){return `Ты — личный ИИ-помощник${S.settings.name?' пользователя по имени '+S.settings.name:''} в приложении «Помощник». Помогаешь с повседневной рутиной, планированием дня, целями на жизнь, личными финансами (доходы/расходы), мотивацией и любыми вопросами. Отвечай по-русски, коротко, по делу и дружелюбно.
+${buildContext()}
+
+Ты умеешь добавлять данные в приложение. Если пользователь просит что-то добавить (напоминание, дело в график, цель, доход/расход) или ты предлагаешь план, вставь в ответ блок(и) строго в таком формате (по одному JSON на блок):
+\`\`\`action
+{"type":"reminder","title":"Позвонить маме","at":"2026-01-31T09:00"}
+\`\`\`
+Типы:
+- reminder: {"type":"reminder","title":"...","at":"YYYY-MM-DDTHH:MM"}
+- schedule: {"type":"schedule","title":"...","time":"HH:MM","repeat":"daily|weekdays|once"}
+- goal: {"type":"goal","title":"...","cat":"Жизнь|Деньги|Здоровье|Карьера|Семья|Обучение","deadline":"YYYY-MM-DD","steps":["шаг 1","шаг 2"]}
+- tx: {"type":"tx","kind":"in|out","amount":1000,"cat":"Еда","note":"...","date":"YYYY-MM-DD"}
+Категории расходов: ${CAT_OUT.join(', ')}. Категории доходов: ${CAT_IN.join(', ')}.
+Пользователь сам нажмёт кнопку, чтобы подтвердить добавление. Даты считай от текущей даты выше.`}
+
+let busy=false;
+function renderChat(){initProv();if(!$('modelSel').options.length||$('modelSel').dataset.p!==S.settings.provider){$('modelSel').dataset.p=S.settings.provider;loadModels()}
+  const box=$('msgs');
+  if(!S.chat.length){box.innerHTML=`<div class="empty" style="padding-top:30px">🤖 Привет! Я твой помощник.<br><br>Попробуй:<br>«Составь мне график на завтра»<br>«Потратил 450 на еду»<br>«Напомни в 18:00 забрать посылку»<br>«Как мне накопить на машину?»<br><br>${!S.settings.keys.openrouter&&!S.settings.keys.groq&&!S.settings.keys.gemini?'Для лучших моделей добавь бесплатный ключ во вкладке «Ещё».':''}</div>`;return}
+  box.innerHTML=S.chat.map((m,i)=>`<div class="msg ${m.role}">${m.role==='user'?esc(m.content).replace(/\n/g,'<br>'):md(m.content,i)}</div>`).join('');
+  scrollChat();
+}
+function scrollChat(){const b=$('msgs');requestAnimationFrame(()=>b.scrollTop=b.scrollHeight)}
+let pendingActions={};
+function md(t,mi){
+  let out='';const parts=t.split(/```/);let ai=0;
+  parts.forEach((p,i)=>{
+    if(i%2===1){const nl=p.indexOf('\n');const lang=nl>=0?p.slice(0,nl).trim():'';const body=nl>=0?p.slice(nl+1):p;
+      if(lang==='action'){try{const a=JSON.parse(body.trim());const key=mi+'_'+(ai++);pendingActions[key]=a;
+        out+=a._done?`<button class="act" disabled>✓ Добавлено: ${esc(actLabel(a))}</button>`:`<button class="act" onclick="doAction('${key}',${mi})">➕ ${esc(actLabel(a))}</button>`}catch(e){out+=`<pre><code>${esc(body)}</code></pre>`}}
+      else out+=`<pre><code>${esc(body)}</code></pre>`}
+    else{let h=esc(p).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/^#{1,4}\s*(.+)$/gm,'<b>$1</b>').replace(/^\s*[-*]\s+/gm,'• ');
+      out+=h.split(/\n{2,}/).map(x=>x.trim()?`<p>${x.replace(/\n/g,'<br>')}</p>`:'').join('')}
+  });return out}
+function actLabel(a){return a.type==='reminder'?`Напоминание: ${a.title} (${fmtDT(a.at)})`:a.type==='schedule'?`В график: ${a.time} ${a.title}`:a.type==='goal'?`Цель: ${a.title}`:a.type==='tx'?`${a.kind==='in'?'Доход':'Расход'}: ${a.amount} ${S.settings.currency} · ${a.cat}`:'Действие'}
+function doAction(key,mi){const a=pendingActions[key];if(!a)return;
+  if(a.type==='reminder')S.reminders.push({id:uid(),title:a.title,at:a.at,done:false});
+  else if(a.type==='schedule')S.schedule.push({id:uid(),title:a.title,time:a.time||'09:00',repeat:a.repeat||'once',date:todayStr(),doneDates:[]});
+  else if(a.type==='goal')S.goals.push({id:uid(),title:a.title,cat:GOAL_CATS.includes(a.cat)?a.cat:'Жизнь',deadline:a.deadline||'',progress:0,steps:(a.steps||[]).map(t=>({t,done:false}))});
+  else if(a.type==='tx')S.tx.push({id:uid(),type:a.kind==='in'?'in':'out',amount:+a.amount||0,cat:a.cat||'Другое',note:a.note||'',date:a.date||todayStr()});
+  // mark done inside message text
+  const m=S.chat[mi];let idx=-1;m.content=m.content.replace(/```action\s*\n([\s\S]*?)```/g,(full,body)=>{idx++;if(mi+'_'+idx!==key)return full;try{const o=JSON.parse(body.trim());o._done=true;return '```action\n'+JSON.stringify(o)+'\n```'}catch(e){return full}});
+  save();renderChat();toast('✅ '+actLabel(a));if(a.type==='reminder')askNotif()}
+
+async function* streamOpenAI(url,key,model,messages){
+  const headers={'Content-Type':'application/json'};if(key)headers.Authorization='Bearer '+key;
+  if(url.includes('openrouter')){headers['HTTP-Referer']=location.origin||'https://pomoshnik.app';headers['X-Title']='Pomoshnik'}
+  const r=await fetch(url,{method:'POST',headers,body:JSON.stringify({model,messages,stream:true})});
+  if(!r.ok){let t='';try{t=await r.text()}catch(e){}throw new Error(`Ошибка ${r.status}: ${t.slice(0,300)}`)}
+  yield* readSSE(r,j=>j.choices?.[0]?.delta?.content||'');
+}
+async function* streamGemini(key,model,messages){
+  const sys=messages.find(m=>m.role==='system');const contents=messages.filter(m=>m.role!=='system').map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`,
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents,systemInstruction:sys?{parts:[{text:sys.content}]}:undefined})});
+  if(!r.ok){let t='';try{t=await r.text()}catch(e){}throw new Error(`Ошибка ${r.status}: ${t.slice(0,300)}`)}
+  yield* readSSE(r,j=>(j.candidates?.[0]?.content?.parts||[]).map(p=>p.thought?'':(p.text||'')).join(''));
+}
+async function* readSSE(r,pick){
+  const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
+  while(true){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
+    let i;while((i=buf.indexOf('\n'))>=0){const line=buf.slice(0,i).trim();buf=buf.slice(i+1);
+      if(!line.startsWith('data:'))continue;const d=line.slice(5).trim();if(d==='[DONE]')return;
+      try{const j=JSON.parse(d);if(j.error)throw new Error(j.error.message||JSON.stringify(j.error));const t=pick(j);if(t)yield t}catch(e){if(e.message&&!e.message.includes('JSON'))throw e}}}
+}
+async function sendChat(){
+  if(busy)return;const inp=$('chatIn');const text=inp.value.trim();if(!text)return;
+  const p=S.settings.provider,prov=PROVIDERS[p],model=$('modelSel').value||S.settings.model;
+  if(prov.key&&!S.settings.keys[prov.key]){toast('Добавь бесплатный ключ во вкладке «Ещё» или выбери Pollinations');return}
+  if(!model){toast('Выбери модель');return}
+  inp.value='';autosize();busy=true;$('sendBtn').disabled=true;
+  S.chat.push({role:'user',content:text});S.chat.push({role:'assistant',content:'…'});save();renderChat();
+  const msgs=[{role:'system',content:systemPrompt()},...S.chat.slice(0,-1).slice(-20).map(m=>({role:m.role,content:m.content}))];
+  const last=S.chat[S.chat.length-1];let acc='';
+  try{
+    const gen=p==='gemini'?streamGemini(S.settings.keys.gemini,model,msgs):streamOpenAI(prov.url,prov.key?S.settings.keys[prov.key]:'',model,msgs);
+    const box=$('msgs');let lastR=0;
+    for await(const chunk of gen){acc+=chunk;last.content=acc;const n=Date.now();if(n-lastR>80){lastR=n;const el=box.lastElementChild;if(el)el.innerHTML=md(acc,S.chat.length-1);box.scrollTop=box.scrollHeight}}
+    if(!acc)acc='(пустой ответ, попробуй другую модель)';
+    last.content=acc.replace(/<think>[\s\S]*?<\/think>/g,'').trim();
+  }catch(e){last.content=(acc?acc+'\n\n':'')+'⚠️ '+(e.message||e)+'\n\nПопробуй другую модель: бесплатные иногда перегружены.'}
+  busy=false;$('sendBtn').disabled=false;save();renderChat();
+}
+function autosize(){const t=$('chatIn');t.style.height='auto';t.style.height=Math.min(t.scrollHeight,120)+'px'}
+$('chatIn').addEventListener('input',autosize);
+$('chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!/iPhone|iPad|Android/.test(navigator.userAgent)){e.preventDefault();sendChat()}});
+
+// ---------- start ----------
+tick();setInterval(tick,15000);go('today');
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){tick();render()}});
+</script>
+</body>
+</html>
