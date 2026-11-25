@@ -196,7 +196,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 <script>
 // ---------- storage ----------
 const KEY='pomoshnik_v1';
-const DEF={settings:{name:'',currency:'сом',provider:'openrouter',model:'',keys:{openrouter:'',groq:'',gemini:''},useContext:true},
+const DEF={settings:{name:'',currency:'сом',provider:'pollinations',model:'',keys:{openrouter:'',groq:'',gemini:''},useContext:true},
   schedule:[],reminders:[],goals:[],tx:[],chat:[]};
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY))||structuredClone(DEF)}catch(e){S=structuredClone(DEF)}
@@ -419,7 +419,7 @@ function saveModel(){S.settings.model=$('modelSel').value;save()}
 async function fetchModels(p){
   const k=S.settings.keys;
   if(p==='openrouter'){const r=await fetch('https://openrouter.ai/api/v1/models');const j=await r.json();
-    return j.data.filter(m=>m.id.endsWith(':free')||(m.pricing&&+m.pricing.prompt===0&&+m.pricing.completion===0)).map(m=>({id:m.id,name:m.name.replace(/\s*\(free\)/i,'')})).sort((a,b)=>a.name.localeCompare(b.name))}
+    return j.data.filter(m=>(m.architecture?.output_modalities||['text']).every(x=>x==='text')).filter(m=>m.id.endsWith(':free')||(m.pricing&&+m.pricing.prompt===0&&+m.pricing.completion===0)).map(m=>({id:m.id,name:m.name.replace(/\s*\(free\)/i,'')})).sort((a,b)=>a.name.localeCompare(b.name))}
   if(p==='groq'){if(!k.groq)throw new Error('Нужен ключ Groq (вкладка «Ещё»)');const r=await fetch('https://api.groq.com/openai/v1/models',{headers:{Authorization:'Bearer '+k.groq}});if(!r.ok)throw new Error('Groq: '+r.status);
     const j=await r.json();return j.data.filter(m=>!/whisper|tts|guard|orpheus|playai|distil/i.test(m.id)&&m.active!==false).map(m=>({id:m.id,name:m.id})).sort((a,b)=>a.id.localeCompare(b.id))}
   if(p==='gemini'){if(!k.gemini)throw new Error('Нужен ключ Gemini (вкладка «Ещё»)');const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key='+encodeURIComponent(k.gemini));if(!r.ok)throw new Error('Gemini: '+r.status);
@@ -433,7 +433,7 @@ async function loadModels(force){
   try{const list=modelsCache[p]||(modelsCache[p]=await fetchModels(p));
     sel.innerHTML=list.map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
     if(S.settings.model&&list.some(m=>m.id===S.settings.model))sel.value=S.settings.model;else{
-      const pref=list.find(m=>/deepseek|qwen3|llama-3\.3|gemini-2\.5-flash|gemini-flash-latest|kimi/i.test(m.id));if(pref)sel.value=pref.id;S.settings.model=sel.value;save()}
+      const pref=list.find(m=>/openrouter\/free|deepseek|qwen3|llama-3\.3|gemini-2\.5-flash|gemini-flash-latest|kimi/i.test(m.id));if(pref)sel.value=pref.id;S.settings.model=sel.value;save()}
   }catch(e){sel.innerHTML=`<option value="">${esc(e.message||'Ошибка загрузки')}</option>`}
 }
 function buildContext(){
