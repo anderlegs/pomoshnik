@@ -9,7 +9,15 @@ extension Color {
 }
 
 enum Palette {
-    static let accent = Color(hex: 0x1EB8F5)
+    static let accentOptions: [(name: String, hex: UInt32)] = [
+        ("Голубой", 0x1EB8F5), ("Синий", 0x3B6FE0), ("Фиолетовый", 0x8E6CF0), ("Розовый", 0xF0609E),
+        ("Красный", 0xF05A5A), ("Оранжевый", 0xFF8A3D), ("Жёлтый", 0xE0A800), ("Зелёный", 0x34C27A),
+        ("Бирюзовый", 0x18B8A8), ("Графит", 0x6B7686)
+    ]
+    static var accentIndex: Int {
+        min(max(Shared.defaults.integer(forKey: "accent_index"), 0), accentOptions.count - 1)
+    }
+    static var accent: Color { Color(hex: accentOptions[accentIndex].hex) }
     static let green = Color(hex: 0x5FCF5A)
     static let red = Color(hex: 0xF0605D)
     static let yellow = Color(hex: 0xF7C948)

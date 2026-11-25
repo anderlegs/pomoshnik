@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import WidgetKit
 
 // MARK: - AI service
 
@@ -545,6 +546,7 @@ struct SettingsView: View {
     @State private var bgItems: [PhotosPickerItem] = []
     @State private var bgCount = Backgrounds.files().count
     @State private var bgLoading = false
+    @AppStorage("accent_index", store: Shared.defaults) private var accentIndex = 0
 
     var body: some View {
         NavigationStack {
@@ -573,6 +575,31 @@ struct SettingsView: View {
                     Text("ИИ: бесплатные модели")
                 } footer: {
                     Text("Pollinations работает без ключа. Ключи хранятся только на телефоне.")
+                }
+                Section {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 14) {
+                        ForEach(Palette.accentOptions.indices, id: \.self) { i in
+                            VStack(spacing: 4) {
+                                ZStack {
+                                    Circle().fill(Color(hex: Palette.accentOptions[i].hex)).frame(width: 36, height: 36)
+                                    if accentIndex == i {
+                                        Image(systemName: "checkmark").font(.system(size: 14, weight: .bold)).foregroundStyle(.white)
+                                    }
+                                }
+                                Text(Palette.accentOptions[i].name).font(.system(size: 9)).foregroundStyle(Color.secondary).lineLimit(1)
+                            }
+                            .onTapGesture {
+                                accentIndex = i
+                                store.objectWillChange.send()
+                                WidgetCenter.shared.reloadAllTimelines()
+                            }
+                        }
+                    }
+                    .padding(.vertical, 6)
+                } header: {
+                    Text("Цвет оформления")
+                } footer: {
+                    Text("Меняет цвет галочек, кнопок, сообщений и виджетов.")
                 }
                 Section {
                     PhotosPicker(selection: $bgItems, maxSelectionCount: 30, matching: .images) {

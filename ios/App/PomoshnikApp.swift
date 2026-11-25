@@ -42,6 +42,7 @@ struct RootView: View {
     @State private var tab: Tab = .today
     @State private var newTask: TaskItem? = nil
     @State private var keyboardShown = false
+    @AppStorage("accent_index", store: Shared.defaults) private var accentIndex = 0
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -68,6 +69,7 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             withAnimation(.easeOut(duration: 0.2)) { keyboardShown = false }
         }
+        .tint(Color(hex: Palette.accentOptions[min(max(accentIndex, 0), Palette.accentOptions.count - 1)].hex))
         .sheet(item: $newTask) { t in TaskEditor(task: t, isNew: true) }
         .onChange(of: phase) { _, p in if p == .active { store.reload() } }
         .onChange(of: store.askAI) { _, v in if v != nil { tab = .ai } }

@@ -53,6 +53,9 @@ struct WTaskRow: View {
                 Image(systemName: task.done ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: compact ? 13 : 15))
                     .foregroundStyle(task.done ? Palette.accent : Color.secondary)
+                if let g = data.goal(task.goalId) {
+                    Text(g.emoji).font(.system(size: compact ? 11 : 13))
+                }
                 Text(task.title)
                     .font(.system(size: compact ? 12 : 13, weight: .medium))
                     .strikethrough(task.done)
@@ -152,7 +155,8 @@ struct TodayWidgetView: View {
                         Button(intent: ToggleTaskIntent(taskID: t.id.uuidString)) {
                             HStack(spacing: 4) {
                                 Image(systemName: "circle").font(.system(size: 10))
-                                Text(t.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                                Text((entry.data.goal(t.goalId).map { $0.emoji + " " } ?? "") + t.title)
+                                    .font(.system(size: 13, weight: .medium)).lineLimit(1)
                             }
                         }
                         .buttonStyle(.plain)

@@ -61,7 +61,7 @@ struct TodayView: View {
         .sheet(isPresented: $showSettings) { SettingsView() }
         .sheet(isPresented: $showMonth) {
             MonthCalendar(selected: $selected)
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.large])
         }
     }
 }
@@ -73,6 +73,7 @@ struct MonthCalendar: View {
     @Binding var selected: Date
     @State private var month = Date()
     @State private var allMonths = false
+    @State private var year = Cal.ru.component(.year, from: Date())
 
     var body: some View {
         NavigationStack {
@@ -85,29 +86,32 @@ struct MonthCalendar: View {
                 .padding(.horizontal, 18)
 
                 if allMonths {
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 26) {
-                                ForEach(-12...24, id: \.self) { offset in
-                                    let m = Cal.ru.date(byAdding: .month, value: offset, to: Date()) ?? Date()
-                                    VStack(alignment: .leading, spacing: 10) {
-                                        Text(DF.monthYear.string(from: m).capFirst)
-                                            .font(.title3.weight(.bold))
-                                            .foregroundStyle(offset == 0 ? Palette.accent : Color.primary)
-                                        MonthGrid(month: m, selected: selected) { d in pick(d) }
-                                    }
-                                    .id(offset)
+                    VStack(spacing: 12) {
+                        HStack {
+                            Button { year -= 1 } label: { Image(systemName: "chevron.left") }
+                            Spacer()
+                            Text(String(year)).font(.title2.weight(.bold))
+                            Spacer()
+                            Button { year += 1 } label: { Image(systemName: "chevron.right") }
+                        }
+                        .buttonStyle(.plain)
+                        .font(.headline)
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 16) {
+                            ForEach(1...12, id: \.self) { m in
+                                let date = Cal.ru.date(from: DateComponents(year: year, month: m, day: 1)) ?? Date()
+                                Button {
+                                    month = date
+                                    withAnimation(.snappy) { allMonths = false }
+                                } label: {
+                                    MiniMonth(month: date, selected: selected)
                                 }
+                                .buttonStyle(.plain)
                             }
-                            .padding(.horizontal, 18)
-                            .padding(.bottom, 30)
                         }
-                        .onAppear {
-                            let diff = Cal.ru.dateComponents([.month], from: Cal.ru.dateInterval(of: .month, for: Date())?.start ?? Date(),
-                                                             to: Cal.ru.dateInterval(of: .month, for: selected)?.start ?? Date()).month ?? 0
-                            proxy.scrollTo(max(-12, min(24, diff)), anchor: .top)
-                        }
+                        Text("Нажми на месяц, чтобы открыть его").font(.caption).foregroundStyle(Color.secondary)
+                        Spacer(minLength: 0)
                     }
+                    .padding(.horizontal, 14)
                 } else {
                     VStack(spacing: 14) {
                         HStack {
@@ -132,13 +136,51 @@ struct MonthCalendar: View {
                 }
                 ToolbarItem(placement: .confirmationAction) { Button("Готово") { dismiss() } }
             }
-            .onAppear { month = selected }
+            .onAppear { month = selected; year = Cal.ru.component(.year, from: selected) }
         }
     }
 
     private func pick(_ d: Date) {
         selected = d.startOfDay
         dismiss()
+    }
+}
+
+struct MiniMonth: View {
+    @EnvironmentObject var store: Store
+    let month: Date
+    let selected: Date
+
+    var body: some View {
+        let start = Cal.ru.dateInterval(of: .month, for: month)?.start ?? month
+        let daysCount = Cal.ru.range(of: .day, in: .month, for: month)?.count ?? 30
+        let offset = (Cal.ru.component(.weekday, from: start) + 5) % 7
+        let cells: [Date?] = Array(repeating: nil, count: offset) + (0..<daysCount).map { start.adding(days: $0) }
+        let isCurrent = Cal.ru.isDate(month, equalTo: Date(), toGranularity: .month)
+        VStack(alignment: .leading, spacing: 4) {
+            Text(DF.monthShort.string(from: month).capFirst.replacingOccurrences(of: ".", with: ""))
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(isCurrent ? Palette.accent : Color.primary)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 2) {
+                ForEach(Array(cells.enumerated()), id: \.offset) { _, day in
+                    if let day {
+                        let today = day.isSameDay(Date())
+                        let on = day.isSameDay(selected)
+                        let has = !store.data.tasks(on: day).isEmpty
+                        Text("\(Cal.ru.component(.day, from: day))")
+                            .font(.system(size: 9, weight: has || today ? .bold : .regular))
+                            .foregroundStyle(today ? Color.white : (has ? Palette.accent : (on ? Palette.accent : Color.primary)))
+                            .frame(width: 14, height: 14)
+                            .background(Circle().fill(today ? Palette.accent : Color.clear))
+                            .overlay(Circle().stroke(on && !today ? Palette.accent : Color.clear, lineWidth: 1))
+                    } else {
+                        Color.clear.frame(width: 14, height: 14)
+                    }
+                }
+            }
+        }
+        .padding(6)
+        .background(RoundedRectangle(cornerRadius: 10).fill(isCurrent ? Palette.accent.opacity(0.08) : Color.clear))
     }
 }
 
