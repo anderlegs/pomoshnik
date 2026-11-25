@@ -1,0 +1,59 @@
+name: Build iOS app
+on:
+  push:
+    branches: [main]
+    paths: ['ios/**', '.github/workflows/ios.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: ios
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack uploaded sources
+        run: |
+          if [ -f ios/src.txz ]; then
+            cd ios && tar xJf src.txz && rm src.txz && cd ..
+            git add -A ios
+            git -c user.name="Pomoshnik CI" -c user.email= commit -m "Unpack iOS sources" && git push
+          fi
+      - name: Tools
+        run: |
+          brew install xcodegen
+          python3 -m pip install --break-system-packages pillow || python3 -m pip install pillow
+      - name: Generate project
+        working-directory: ios
+        run: |
+          python3 gen_icon.py
+          xcodegen generate
+      - name: Build
+        working-directory: ios
+        run: |
+          xcodebuild -project Pomoshnik.xcodeproj -target Pomoshnik -configuration Release -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" SYMROOT="$PWD/build" build > build.log 2>&1 || {
+              grep -E "error:" build.log | sort -u | head -60 | while IFS= read -r l; do echo "::error::${l#$PWD/}"; done
+              tail -60 build.log
+              exit 1
+            }
+      - name: Package IPA
+        working-directory: ios
+        run: |
+          APP=build/Release-iphoneos/Pomoshnik.app
+          codesign -f -s - --entitlements Widget/PomoshnikWidget.entitlements "$APP/PlugIns/PomoshnikWidget.appex"
+          codesign -f -s - --entitlements App/Pomoshnik.entitlements "$APP"
+          mkdir -p Payload && cp -R "$APP" Payload/ && zip -qry Pomoshnik.ipa Payload
+          ls -la Pomoshnik.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Pomoshnik-ipa
+          path: ios/Pomoshnik.ipa
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest -y --cleanup-tag || true
+          gh release create latest ios/Pomoshnik.ipa --title "Помощник — последняя сборка" --notes "Собрано автоматически. Установка: Sideloadly → Pomoshnik.ipa → твой Apple ID."
