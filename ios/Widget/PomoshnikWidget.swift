@@ -118,6 +118,19 @@ struct TodayWidgetView: View {
     }
 
     var body: some View {
+        if !Shared.hasGroup && entry.data.tasks.isEmpty && entry.data.habits.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("⚠️ Нет доступа к данным").font(.system(size: 13, weight: .bold))
+                Text("Виджет не видит общую папку приложения. Открой «Помощник» → ⚙️ Настройки → раздел «Виджеты».")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.secondary)
+            }
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder var content: some View {
         switch family {
         case .accessoryCircular:
             Gauge(value: Double(doneAll), in: 0...Double(max(totalAll, 1))) {

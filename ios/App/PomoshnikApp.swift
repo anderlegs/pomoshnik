@@ -41,6 +41,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var phase
     @State private var tab: Tab = .today
     @State private var newTask: TaskItem? = nil
+    @State private var keyboardShown = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -55,8 +56,17 @@ struct RootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            TabBar(tab: $tab) { newTask = TaskItem(title: "") }
-                .ignoresSafeArea(.keyboard)
+            if !keyboardShown {
+                TabBar(tab: $tab) { newTask = TaskItem(title: "") }
+                    .ignoresSafeArea(.keyboard)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            withAnimation(.easeOut(duration: 0.2)) { keyboardShown = true }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            withAnimation(.easeOut(duration: 0.2)) { keyboardShown = false }
         }
         .sheet(item: $newTask) { t in TaskEditor(task: t, isNew: true) }
         .onChange(of: phase) { _, p in if p == .active { store.reload() } }

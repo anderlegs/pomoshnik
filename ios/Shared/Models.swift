@@ -88,6 +88,8 @@ struct Habit: Codable, Identifiable, Hashable {
     var weekly = false
     var target = 1
     var log: [String: Int] = [:]
+    var remindTime: Date? = nil
+    var remindWeekday: Int? = nil
 
     func periodDays(_ date: Date) -> [Date] {
         if !weekly { return [date.startOfDay] }
@@ -183,11 +185,30 @@ enum Moods {
 enum Shared {
     static let defaultGroup = "group.com.anderlegs.pomoshnik"
 
-    static var groupID: String {
+    static let groupID: String = {
         if let groups = Bundle.main.object(forInfoDictionaryKey: "ALTAppGroups") as? [String], let g = groups.first {
             return g
         }
+        if FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: defaultGroup) != nil {
+            return defaultGroup
+        }
+        if let g = provisionedGroups().first { return g }
         return defaultGroup
+    }()
+
+    /// Reads app groups from embedded.mobileprovision (re-signing tools may rename the group).
+    static func provisionedGroups() -> [String] {
+        guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
+              let data = try? Data(contentsOf: url),
+              let start = data.range(of: Data("<?xml".utf8)),
+              let end = data.range(of: Data("</plist>".utf8), in: start.lowerBound..<data.endIndex) else { return [] }
+        let plistData = data.subdata(in: start.lowerBound..<end.upperBound)
+        guard let plist = try? PropertyListSerialization.propertyList(from: plistData, format: nil) as? [String: Any],
+              let ent = plist["Entitlements"] as? [String: Any],
+              let groups = ent["com.apple.security.application-groups"] as? [String] else { return [] }
+        return groups
+            .filter { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) != nil }
+            .sorted { a, _ in a.lowercased().contains("pomoshnik") }
     }
 
     static var containerURL: URL {

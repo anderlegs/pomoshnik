@@ -77,9 +77,14 @@ struct HabitRow: View {
             .buttonStyle(.plain)
 
             Text(habit.emoji).font(.title3)
-            Text(habit.title)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(done ? Color.secondary : Color.primary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(habit.title)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(done ? Color.secondary : Color.primary)
+                if let t = habit.remindTime {
+                    Label(t.timeString, systemImage: "bell.fill").font(.caption2).foregroundStyle(Color.orange)
+                }
+            }
             Spacer()
             Text("\(count)/\(habit.target)")
                 .font(.footnote.weight(.bold))
@@ -114,6 +119,28 @@ struct HabitEditor: View {
                     }
                     .pickerStyle(.segmented)
                     Stepper("Сколько раз: \(habit.target)", value: $habit.target, in: 1...20)
+                }
+                Section {
+                    Toggle(isOn: Binding(get: { habit.remindTime != nil },
+                                         set: { on in
+                                             habit.remindTime = on ? (Cal.ru.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()) : nil
+                                             if on { Notifier.requestAuth() }
+                                         })) {
+                        Label("Напоминание", systemImage: "bell")
+                    }
+                    if habit.remindTime != nil {
+                        DatePicker("Время", selection: Binding(get: { habit.remindTime ?? Date() }, set: { habit.remindTime = $0 }),
+                                   displayedComponents: .hourAndMinute)
+                        if habit.weekly {
+                            Picker("День недели", selection: Binding(get: { habit.remindWeekday ?? 2 }, set: { habit.remindWeekday = $0 })) {
+                                ForEach([2, 3, 4, 5, 6, 7, 1], id: \.self) { wd in
+                                    Text(["", "Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"][wd]).tag(wd)
+                                }
+                            }
+                        }
+                    }
+                } footer: {
+                    Text(habit.remindTime == nil ? "" : (habit.weekly ? "Уведомление раз в неделю" : "Уведомление каждый день"))
                 }
                 if store.data.habits.contains(where: { $0.id == habit.id }) {
                     Section {

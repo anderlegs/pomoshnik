@@ -85,6 +85,7 @@ final class Store: ObservableObject {
         mutate { d in
             if let i = d.habits.firstIndex(where: { $0.id == h.id }) { d.habits[i] = h } else { d.habits.append(h) }
         }
+        Notifier.scheduleHabit(h)
     }
 
     func tapHabit(_ id: UUID) {
@@ -93,7 +94,10 @@ final class Store: ObservableObject {
         }
     }
 
-    func deleteHabit(_ id: UUID) { mutate { d in d.habits.removeAll { $0.id == id } } }
+    func deleteHabit(_ id: UUID) {
+        mutate { d in d.habits.removeAll { $0.id == id } }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["habit-\(id.uuidString)"])
+    }
 
     func setMood(_ level: Int, on day: Date) { mutate { d in d.moods[day.dayKey] = level } }
 
@@ -155,6 +159,21 @@ enum Notifier {
         let comps = Cal.ru.dateComponents([.year, .month, .day, .hour, .minute], from: time)
         c.add(UNNotificationRequest(identifier: t.id.uuidString, content: content,
                                     trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)))
+    }
+
+    static func scheduleHabit(_ h: Habit) {
+        let c = UNUserNotificationCenter.current()
+        let id = "habit-\(h.id.uuidString)"
+        c.removePendingNotificationRequests(withIdentifiers: [id])
+        guard let t = h.remindTime else { return }
+        var comps = Cal.ru.dateComponents([.hour, .minute], from: t)
+        if h.weekly, let wd = h.remindWeekday { comps.weekday = wd }
+        let content = UNMutableNotificationContent()
+        content.title = "\(h.emoji) \(h.title)"
+        content.body = h.weekly ? "Привычка на неделю: цель \(h.target) раз" : "Пора выполнить привычку 💪"
+        content.sound = .default
+        c.add(UNNotificationRequest(identifier: id, content: content,
+                                    trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)))
     }
 
     static func cancel(_ id: UUID) {

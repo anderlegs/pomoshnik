@@ -244,6 +244,9 @@ struct AIView: View {
     @State private var streaming = false
     @State private var streamText = ""
     @State private var showSettings = false
+    @State private var speakNext = false
+    @AppStorage("ai_speak", store: Shared.defaults) private var speakAll = false
+    @StateObject private var voice = VoiceIO()
     @FocusState private var inputFocused: Bool
 
     private var provider: AIProvider { AIProvider(rawValue: providerRaw) ?? .pollinations }
@@ -299,7 +302,13 @@ struct AIView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    if voice.speaking {
+                        Button { voice.stopSpeaking() } label: { Image(systemName: "speaker.slash.fill") }
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Toggle(isOn: $speakAll) { Label("Озвучивать все ответы", systemImage: "speaker.wave.2") }
                         Button { showSettings = true } label: { Label("Ключи и настройки", systemImage: "gearshape") }
                         Button(role: .destructive) { store.mutate { $0.chat = [] } } label: { Label("Очистить чат", systemImage: "trash") }
                     } label: { Image(systemName: "ellipsis.circle") }
@@ -309,6 +318,14 @@ struct AIView: View {
             .task(id: providerRaw) { await loadModels() }
             .onAppear(perform: consumeAsk)
             .onChange(of: store.askAI) { _, _ in consumeAsk() }
+            .onChange(of: voice.transcript) { _, t in if voice.recording { input = t } }
+            .onChange(of: voice.recording) { was, now in
+                if was && !now {
+                    let t = input.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !t.isEmpty { speakNext = true; send(t) }
+                }
+            }
+            .onDisappear { voice.stopRecording() }
         }
     }
 
@@ -330,10 +347,29 @@ struct AIView: View {
     }
 
     private var inputBar: some View {
+        VStack(spacing: 6) {
+        if let e = voice.error {
+            Text(e).font(.caption).foregroundStyle(Color.orange)
+        }
+        if voice.recording {
+            HStack(spacing: 6) {
+                Circle().fill(Palette.red).frame(width: 8, height: 8)
+                Text("Слушаю… нажми ⏹, чтобы отправить").font(.caption.weight(.semibold)).foregroundStyle(Palette.red)
+            }
+        }
         HStack(alignment: .bottom, spacing: 8) {
+            Button { voice.toggleRecording() } label: {
+                Image(systemName: voice.recording ? "stop.fill" : "mic.fill")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(voice.recording ? Color.white : Palette.accent)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(voice.recording ? Palette.red : Palette.card))
+            }
+            .disabled(streaming)
             TextField("Сообщение…", text: $input, axis: .vertical)
                 .lineLimit(1...5)
                 .focused($inputFocused)
+                .foregroundStyle(Color.primary)
                 .padding(.horizontal, 14).padding(.vertical, 10)
                 .background(RoundedRectangle(cornerRadius: 20).fill(Palette.card))
             Button { send(input) } label: {
@@ -344,6 +380,7 @@ struct AIView: View {
                     .background(Circle().fill(input.trimmingCharacters(in: .whitespaces).isEmpty || streaming ? Color.gray : Palette.accent))
             }
             .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty || streaming)
+        }
         }
         .padding(.horizontal, 14)
         .padding(.top, 6)
@@ -402,6 +439,8 @@ struct AIView: View {
             store.mutate { $0.chat.append(ChatMessage(role: "assistant", content: final)) }
             streaming = false
             streamText = ""
+            if speakNext || speakAll { voice.speak(final) }
+            speakNext = false
         }
     }
 
@@ -534,6 +573,8 @@ struct SettingsView: View {
                 Section("Виджеты") {
                     Text("Зажми пустое место на экране «Домой» → «Изменить» → «Добавить виджет» → «Помощник». Для экрана блокировки: зажми экран блокировки → «Настроить» → «Экран блокировки» → блок виджетов.")
                         .font(.footnote)
+                    Text(Shared.hasGroup ? "✅ Общая папка: \(Shared.groupID)" : "❌ Общая папка недоступна (\(Shared.groupID))")
+                        .font(.caption2).foregroundStyle(Color.secondary)
                     if !Shared.hasGroup {
                         Text("⚠️ Общая папка приложения недоступна: виджеты могут не видеть данные. Переустанови приложение через Sideloadly/AltStore с поддержкой App Groups.")
                             .font(.footnote).foregroundStyle(Color.orange)

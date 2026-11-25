@@ -7,6 +7,7 @@ struct TodayView: View {
     @State private var focusTask: TaskItem? = nil
     @State private var showStats = false
     @State private var showSettings = false
+    @State private var showMonth = false
     @State private var eventsOpen = true
     @State private var tasksOpen = true
     @State private var habitsOpen = true
@@ -20,6 +21,7 @@ struct TodayView: View {
         ScrollView {
             VStack(spacing: 0) {
                 TodayHeader(selected: $selected,
+                            onCalendar: { showMonth = true },
                             onStats: { showStats = true },
                             onSettings: { showSettings = true })
 
@@ -57,6 +59,86 @@ struct TodayView: View {
         .fullScreenCover(item: $focusTask) { t in FocusView(task: t) }
         .sheet(isPresented: $showStats) { StatsView() }
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showMonth) {
+            MonthCalendar(selected: $selected)
+                .presentationDetents([.medium, .large])
+        }
+    }
+}
+
+// MARK: - Month calendar
+
+struct MonthCalendar: View {
+    @EnvironmentObject var store: Store
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selected: Date
+    @State private var month = Date()
+
+    var body: some View {
+        let start = Cal.ru.dateInterval(of: .month, for: month)?.start ?? month
+        let daysCount = Cal.ru.range(of: .day, in: .month, for: month)?.count ?? 30
+        let offset = (Cal.ru.component(.weekday, from: start) + 5) % 7
+        let cells: [Date?] = Array(repeating: nil, count: offset) + (0..<daysCount).map { start.adding(days: $0) }
+        let cols = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
+
+        NavigationStack {
+            VStack(spacing: 14) {
+                HStack {
+                    Button { month = Cal.ru.date(byAdding: .month, value: -1, to: month) ?? month } label: { Image(systemName: "chevron.left") }
+                    Spacer()
+                    Text(DF.monthYear.string(from: month).capFirst).font(.title3.weight(.bold))
+                    Spacer()
+                    Button { month = Cal.ru.date(byAdding: .month, value: 1, to: month) ?? month } label: { Image(systemName: "chevron.right") }
+                }
+                .buttonStyle(.plain)
+                .font(.headline)
+
+                LazyVGrid(columns: cols, spacing: 6) {
+                    ForEach(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"], id: \.self) { d in
+                        Text(d).font(.caption.weight(.semibold)).foregroundStyle(Color.secondary)
+                    }
+                    ForEach(Array(cells.enumerated()), id: \.offset) { _, day in
+                        if let day {
+                            let items = store.data.tasks(on: day)
+                            let on = day.isSameDay(selected)
+                            let today = day.isSameDay(Date())
+                            Button {
+                                selected = day.startOfDay
+                                dismiss()
+                            } label: {
+                                VStack(spacing: 3) {
+                                    Text("\(Cal.ru.component(.day, from: day))")
+                                        .font(.system(size: 16, weight: today || on ? .bold : .regular))
+                                        .foregroundStyle(on ? Color.white : (today ? Palette.accent : Color.primary))
+                                    HStack(spacing: 2) {
+                                        ForEach(0..<min(items.count, 3), id: \.self) { i in
+                                            Circle()
+                                                .fill(on ? Color.white : (items[i].done ? Color.secondary : Palette.goal(store.data.goal(items[i].goalId)?.color ?? 0)))
+                                                .frame(width: 5, height: 5)
+                                        }
+                                    }
+                                    .frame(height: 5)
+                                }
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .background(RoundedRectangle(cornerRadius: 10).fill(on ? Palette.accent : Color.clear))
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            Color.clear.frame(height: 44)
+                        }
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(18)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Сегодня") { selected = Date().startOfDay; dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) { Button("Готово") { dismiss() } }
+            }
+            .onAppear { month = selected }
+        }
     }
 }
 
@@ -64,6 +146,7 @@ struct TodayView: View {
 
 struct TodayHeader: View {
     @Binding var selected: Date
+    var onCalendar: () -> Void
     var onStats: () -> Void
     var onSettings: () -> Void
 
@@ -84,13 +167,14 @@ struct TodayHeader: View {
                         Text(isToday ? "Сегодня" : DF.weekday.string(from: selected).capFirst)
                             .font(.system(size: 34, weight: .bold))
                             .foregroundStyle(.white)
+                            .onTapGesture { withAnimation { selected = Date().startOfDay } }
                         Text(DF.dayMonth.string(from: selected))
                             .font(.headline)
                             .foregroundStyle(.white.opacity(0.7))
                     }
                     Spacer()
                     HStack(spacing: 18) {
-                        Button(action: { withAnimation { selected = Date().startOfDay } }) {
+                        Button(action: onCalendar) {
                             Image(systemName: "calendar")
                         }
                         Button(action: onStats) { Image(systemName: "chart.bar") }
