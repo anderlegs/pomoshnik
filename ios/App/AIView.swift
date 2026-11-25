@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 // MARK: - AI service
 
@@ -541,6 +542,9 @@ struct SettingsView: View {
     @EnvironmentObject var store: Store
     @Environment(\.dismiss) private var dismiss
     @State private var keys: [AIProvider: String] = [:]
+    @State private var bgItems: [PhotosPickerItem] = []
+    @State private var bgCount = Backgrounds.files().count
+    @State private var bgLoading = false
 
     var body: some View {
         NavigationStack {
@@ -569,6 +573,35 @@ struct SettingsView: View {
                     Text("ИИ: бесплатные модели")
                 } footer: {
                     Text("Pollinations работает без ключа. Ключи хранятся только на телефоне.")
+                }
+                Section {
+                    PhotosPicker(selection: $bgItems, maxSelectionCount: 30, matching: .images) {
+                        Label(bgLoading ? "Загружаю фото…" : "Выбрать фото для фона", systemImage: "photo.on.rectangle.angled")
+                    }
+                    .disabled(bgLoading)
+                    if bgCount > 0 {
+                        Button("Убрать все фото (вернуть горы)", role: .destructive) {
+                            Backgrounds.clear()
+                            bgCount = 0
+                        }
+                    }
+                } header: {
+                    Text("Фон «Сегодня»")
+                } footer: {
+                    Text(bgCount > 0 ? "Фото: \(bgCount). Меняются каждые 8 секунд, нажми на фон — переключится сразу." : "Выбери одно или несколько фото из галереи — они будут сменять друг друга.")
+                }
+                .onChange(of: bgItems) { _, items in
+                    guard !items.isEmpty else { return }
+                    bgLoading = true
+                    Task {
+                        for item in items {
+                            if let data = try? await item.loadTransferable(type: Data.self) { Backgrounds.add(data) }
+                        }
+                        bgItems = []
+                        bgCount = Backgrounds.files().count
+                        bgLoading = false
+                        NotificationCenter.default.post(name: Backgrounds.changed, object: nil)
+                    }
                 }
                 Section("Виджеты") {
                     Text("Зажми пустое место на экране «Домой» → «Изменить» → «Добавить виджет» → «Помощник». Для экрана блокировки: зажми экран блокировки → «Настроить» → «Экран блокировки» → блок виджетов.")

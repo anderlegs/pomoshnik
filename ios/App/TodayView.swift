@@ -69,10 +69,84 @@ struct TodayView: View {
 // MARK: - Month calendar
 
 struct MonthCalendar: View {
-    @EnvironmentObject var store: Store
     @Environment(\.dismiss) private var dismiss
     @Binding var selected: Date
     @State private var month = Date()
+    @State private var allMonths = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                Picker("", selection: $allMonths) {
+                    Text("Месяц").tag(false)
+                    Text("Все месяцы").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 18)
+
+                if allMonths {
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 26) {
+                                ForEach(-12...24, id: \.self) { offset in
+                                    let m = Cal.ru.date(byAdding: .month, value: offset, to: Date()) ?? Date()
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text(DF.monthYear.string(from: m).capFirst)
+                                            .font(.title3.weight(.bold))
+                                            .foregroundStyle(offset == 0 ? Palette.accent : Color.primary)
+                                        MonthGrid(month: m, selected: selected) { d in pick(d) }
+                                    }
+                                    .id(offset)
+                                }
+                            }
+                            .padding(.horizontal, 18)
+                            .padding(.bottom, 30)
+                        }
+                        .onAppear {
+                            let diff = Cal.ru.dateComponents([.month], from: Cal.ru.dateInterval(of: .month, for: Date())?.start ?? Date(),
+                                                             to: Cal.ru.dateInterval(of: .month, for: selected)?.start ?? Date()).month ?? 0
+                            proxy.scrollTo(max(-12, min(24, diff)), anchor: .top)
+                        }
+                    }
+                } else {
+                    VStack(spacing: 14) {
+                        HStack {
+                            Button { month = Cal.ru.date(byAdding: .month, value: -1, to: month) ?? month } label: { Image(systemName: "chevron.left") }
+                            Spacer()
+                            Text(DF.monthYear.string(from: month).capFirst).font(.title3.weight(.bold))
+                            Spacer()
+                            Button { month = Cal.ru.date(byAdding: .month, value: 1, to: month) ?? month } label: { Image(systemName: "chevron.right") }
+                        }
+                        .buttonStyle(.plain)
+                        .font(.headline)
+                        MonthGrid(month: month, selected: selected) { d in pick(d) }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 18)
+                }
+            }
+            .padding(.top, 8)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Сегодня") { pick(Date()) }
+                }
+                ToolbarItem(placement: .confirmationAction) { Button("Готово") { dismiss() } }
+            }
+            .onAppear { month = selected }
+        }
+    }
+
+    private func pick(_ d: Date) {
+        selected = d.startOfDay
+        dismiss()
+    }
+}
+
+struct MonthGrid: View {
+    @EnvironmentObject var store: Store
+    let month: Date
+    let selected: Date
+    var onPick: (Date) -> Void
 
     var body: some View {
         let start = Cal.ru.dateInterval(of: .month, for: month)?.start ?? month
@@ -81,63 +155,37 @@ struct MonthCalendar: View {
         let cells: [Date?] = Array(repeating: nil, count: offset) + (0..<daysCount).map { start.adding(days: $0) }
         let cols = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
 
-        NavigationStack {
-            VStack(spacing: 14) {
-                HStack {
-                    Button { month = Cal.ru.date(byAdding: .month, value: -1, to: month) ?? month } label: { Image(systemName: "chevron.left") }
-                    Spacer()
-                    Text(DF.monthYear.string(from: month).capFirst).font(.title3.weight(.bold))
-                    Spacer()
-                    Button { month = Cal.ru.date(byAdding: .month, value: 1, to: month) ?? month } label: { Image(systemName: "chevron.right") }
-                }
-                .buttonStyle(.plain)
-                .font(.headline)
-
-                LazyVGrid(columns: cols, spacing: 6) {
-                    ForEach(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"], id: \.self) { d in
-                        Text(d).font(.caption.weight(.semibold)).foregroundStyle(Color.secondary)
-                    }
-                    ForEach(Array(cells.enumerated()), id: \.offset) { _, day in
-                        if let day {
-                            let items = store.data.tasks(on: day)
-                            let on = day.isSameDay(selected)
-                            let today = day.isSameDay(Date())
-                            Button {
-                                selected = day.startOfDay
-                                dismiss()
-                            } label: {
-                                VStack(spacing: 3) {
-                                    Text("\(Cal.ru.component(.day, from: day))")
-                                        .font(.system(size: 16, weight: today || on ? .bold : .regular))
-                                        .foregroundStyle(on ? Color.white : (today ? Palette.accent : Color.primary))
-                                    HStack(spacing: 2) {
-                                        ForEach(0..<min(items.count, 3), id: \.self) { i in
-                                            Circle()
-                                                .fill(on ? Color.white : (items[i].done ? Color.secondary : Palette.goal(store.data.goal(items[i].goalId)?.color ?? 0)))
-                                                .frame(width: 5, height: 5)
-                                        }
-                                    }
-                                    .frame(height: 5)
+        LazyVGrid(columns: cols, spacing: 6) {
+            ForEach(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"], id: \.self) { d in
+                Text(d).font(.caption.weight(.semibold)).foregroundStyle(Color.secondary)
+            }
+            ForEach(Array(cells.enumerated()), id: \.offset) { _, day in
+                if let day {
+                    let items = store.data.tasks(on: day)
+                    let on = day.isSameDay(selected)
+                    let today = day.isSameDay(Date())
+                    Button { onPick(day) } label: {
+                        VStack(spacing: 3) {
+                            Text("\(Cal.ru.component(.day, from: day))")
+                                .font(.system(size: 16, weight: today || on ? .bold : .regular))
+                                .foregroundStyle(on ? Color.white : (today ? Palette.accent : Color.primary))
+                            HStack(spacing: 2) {
+                                ForEach(0..<min(items.count, 3), id: \.self) { i in
+                                    Circle()
+                                        .fill(on ? Color.white : (items[i].done ? Color.secondary : Palette.goal(store.data.goal(items[i].goalId)?.color ?? 0)))
+                                        .frame(width: 5, height: 5)
                                 }
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                                .background(RoundedRectangle(cornerRadius: 10).fill(on ? Palette.accent : Color.clear))
                             }
-                            .buttonStyle(.plain)
-                        } else {
-                            Color.clear.frame(height: 44)
+                            .frame(height: 5)
                         }
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(on ? Palette.accent : Color.clear))
                     }
+                    .buttonStyle(.plain)
+                } else {
+                    Color.clear.frame(height: 44)
                 }
-                Spacer(minLength: 0)
             }
-            .padding(18)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Сегодня") { selected = Date().startOfDay; dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) { Button("Готово") { dismiss() } }
-            }
-            .onAppear { month = selected }
         }
     }
 }
@@ -149,6 +197,7 @@ struct TodayHeader: View {
     var onCalendar: () -> Void
     var onStats: () -> Void
     var onSettings: () -> Void
+    @State private var backgrounds: [UIImage] = Backgrounds.loadAll()
 
     private var isNight: Bool {
         let h = Cal.ru.component(.hour, from: Date())
@@ -158,8 +207,19 @@ struct TodayHeader: View {
     var body: some View {
         let isToday = selected.isSameDay(Date())
         ZStack(alignment: .top) {
-            Landscape(night: isNight)
-                .frame(height: 330)
+            if backgrounds.isEmpty {
+                Landscape(night: isNight)
+                    .frame(height: 330)
+            } else {
+                Slideshow(images: backgrounds)
+                    .frame(height: 330)
+                    .clipped()
+                    .overlay(
+                        LinearGradient(colors: [.black.opacity(0.45), .black.opacity(0.05), .black.opacity(0.4)],
+                                       startPoint: .top, endPoint: .bottom)
+                            .allowsHitTesting(false)
+                    )
+            }
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top) {
@@ -195,6 +255,40 @@ struct TodayHeader: View {
             .frame(height: 330)
         }
         .frame(height: 330)
+        .onReceive(NotificationCenter.default.publisher(for: Backgrounds.changed)) { _ in
+            backgrounds = Backgrounds.loadAll()
+        }
+    }
+}
+
+struct Slideshow: View {
+    let images: [UIImage]
+    @State private var index = 0
+    private let timer = Timer.publish(every: 8, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                ForEach(images.indices, id: \.self) { i in
+                    if i == index % max(images.count, 1) {
+                        Image(uiImage: images[i])
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                            .transition(.opacity)
+                    }
+                }
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { next() }
+        .onReceive(timer) { _ in next() }
+    }
+
+    private func next() {
+        guard images.count > 1 else { return }
+        withAnimation(.easeInOut(duration: 1.2)) { index = (index + 1) % images.count }
     }
 }
 

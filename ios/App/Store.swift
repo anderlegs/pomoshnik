@@ -96,7 +96,7 @@ final class Store: ObservableObject {
 
     func deleteHabit(_ id: UUID) {
         mutate { d in d.habits.removeAll { $0.id == id } }
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["habit-\(id.uuidString)"])
+        Notifier.cancelHabit(id)
     }
 
     func setMood(_ level: Int, on day: Date) { mutate { d in d.moods[day.dayKey] = level } }
@@ -161,19 +161,26 @@ enum Notifier {
                                     trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)))
     }
 
+    static func cancelHabit(_ id: UUID) {
+        var ids = ["habit-\(id.uuidString)"]
+        for i in 0..<30 { ids.append("habit-\(id.uuidString)-\(i)") }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
+    }
+
     static func scheduleHabit(_ h: Habit) {
+        cancelHabit(h.id)
         let c = UNUserNotificationCenter.current()
-        let id = "habit-\(h.id.uuidString)"
-        c.removePendingNotificationRequests(withIdentifiers: [id])
-        guard let t = h.remindTime else { return }
-        var comps = Cal.ru.dateComponents([.hour, .minute], from: t)
-        if h.weekly, let wd = h.remindWeekday { comps.weekday = wd }
-        let content = UNMutableNotificationContent()
-        content.title = "\(h.emoji) \(h.title)"
-        content.body = h.weekly ? "Привычка на неделю: цель \(h.target) раз" : "Пора выполнить привычку 💪"
-        content.sound = .default
-        c.add(UNNotificationRequest(identifier: id, content: content,
-                                    trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)))
+        for (i, t) in h.times.prefix(30).enumerated() {
+            var comps = Cal.ru.dateComponents([.hour, .minute], from: t)
+            if h.weekly, let wd = h.remindWeekday { comps.weekday = wd }
+            let content = UNMutableNotificationContent()
+            content.title = "\(h.emoji) \(h.title)"
+            content.body = h.weekly ? "Привычка на неделю: цель \(h.target) раз" :
+                (h.times.count > 1 ? "Пора выполнить привычку (\(i + 1) из \(h.times.count)) 💪" : "Пора выполнить привычку 💪")
+            content.sound = .default
+            c.add(UNNotificationRequest(identifier: "habit-\(h.id.uuidString)-\(i)", content: content,
+                                        trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)))
+        }
     }
 
     static func cancel(_ id: UUID) {

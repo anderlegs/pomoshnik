@@ -81,8 +81,9 @@ struct HabitRow: View {
                 Text(habit.title)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(done ? Color.secondary : Color.primary)
-                if let t = habit.remindTime {
-                    Label(t.timeString, systemImage: "bell.fill").font(.caption2).foregroundStyle(Color.orange)
+                if !habit.times.isEmpty {
+                    Label(habit.times.map(\.timeString).joined(separator: ", "), systemImage: "bell.fill")
+                        .font(.caption2).foregroundStyle(Color.orange).lineLimit(1)
                 }
             }
             Spacer()
@@ -121,16 +122,34 @@ struct HabitEditor: View {
                     Stepper("Сколько раз: \(habit.target)", value: $habit.target, in: 1...20)
                 }
                 Section {
-                    Toggle(isOn: Binding(get: { habit.remindTime != nil },
+                    Toggle(isOn: Binding(get: { !habit.times.isEmpty },
                                          set: { on in
-                                             habit.remindTime = on ? (Cal.ru.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()) : nil
+                                             habit.times = on ? [Cal.ru.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()] : []
                                              if on { Notifier.requestAuth() }
                                          })) {
                         Label("Напоминание", systemImage: "bell")
                     }
-                    if habit.remindTime != nil {
-                        DatePicker("Время", selection: Binding(get: { habit.remindTime ?? Date() }, set: { habit.remindTime = $0 }),
-                                   displayedComponents: .hourAndMinute)
+                    if !habit.times.isEmpty {
+                        ForEach(Array(habit.times.enumerated()), id: \.offset) { i, _ in
+                            HStack {
+                                DatePicker("Время \(i + 1)", selection: Binding(
+                                    get: { i < habit.times.count ? habit.times[i] : Date() },
+                                    set: { v in var t = habit.times; if i < t.count { t[i] = v; habit.remindTimes = t; habit.remindTime = nil } }),
+                                           displayedComponents: .hourAndMinute)
+                                if habit.times.count > 1 {
+                                    Button {
+                                        var t = habit.times; t.remove(at: i); habit.times = t
+                                    } label: { Image(systemName: "minus.circle.fill").foregroundStyle(Palette.red) }
+                                        .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                        Button {
+                            var t = habit.times
+                            let last = t.last ?? Date()
+                            t.append(Cal.ru.date(byAdding: .hour, value: 3, to: last) ?? last)
+                            habit.remindTimes = t; habit.remindTime = nil
+                        } label: { Label("Добавить время", systemImage: "plus.circle.fill") }
                         if habit.weekly {
                             Picker("День недели", selection: Binding(get: { habit.remindWeekday ?? 2 }, set: { habit.remindWeekday = $0 })) {
                                 ForEach([2, 3, 4, 5, 6, 7, 1], id: \.self) { wd in
@@ -140,7 +159,7 @@ struct HabitEditor: View {
                         }
                     }
                 } footer: {
-                    Text(habit.remindTime == nil ? "" : (habit.weekly ? "Уведомление раз в неделю" : "Уведомление каждый день"))
+                    Text(habit.times.isEmpty ? "" : (habit.weekly ? "Уведомления раз в неделю" : "Уведомления каждый день: \(habit.times.count) раз(а)"))
                 }
                 if store.data.habits.contains(where: { $0.id == habit.id }) {
                     Section {

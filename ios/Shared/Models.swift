@@ -90,6 +90,13 @@ struct Habit: Codable, Identifiable, Hashable {
     var log: [String: Int] = [:]
     var remindTime: Date? = nil
     var remindWeekday: Int? = nil
+    var remindTimes: [Date]? = nil
+
+    /// All reminder times (supports old single-time data).
+    var times: [Date] {
+        get { remindTimes ?? (remindTime.map { [$0] } ?? []) }
+        set { remindTimes = newValue.isEmpty ? nil : newValue.sorted { $0.timeString < $1.timeString }; remindTime = nil }
+    }
 
     func periodDays(_ date: Date) -> [Date] {
         if !weekly { return [date.startOfDay] }
